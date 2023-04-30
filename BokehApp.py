@@ -13,7 +13,7 @@ import bokeh
 import pandas as pd
 from bokeh.transform import cumsum
 from math import pi
-from bokeh.models import Panel, Tabs, Div, GeoJSONDataSource, LinearColorMapper, HoverTool, DataTable, ColumnDataSource, TableColumn, HTMLTemplateFormatter
+from bokeh.models import Panel, Tabs, Div, GeoJSONDataSource, LinearColorMapper, HoverTool, DataTable, ColumnDataSource, TableColumn, HTMLTemplateFormatter, BasicTickFormatter, DatetimeTickFormatter
 import geopandas as gpd
 import random
 from databricks import sql
@@ -109,10 +109,14 @@ ORDER BY 1 LIMIT 400""")
 
   return data_table
 
-# html = file_html(create_table(),CDN,'bar_chart')
-# displayHTML(html)
 
 # COMMAND ----------
+
+from bokeh.plotting import figure
+from bokeh.embed import components, file_html
+from bokeh.resources import CDN
+from bokeh.palettes import Category20c,magma
+from bokeh.models import BasicTickFormatter,DatetimeTickFormatter
 
 def vbar_chart():
 
@@ -131,36 +135,45 @@ def vbar_chart():
   df['year'] = df['year'].astype(str)
   colors = magma(len(countries))
   fig = figure(x_range=df['year']
-               , sizing_mode='stretch_both',
-               title="Revenue by Nation over Time")
+               ,title="Revenue by Nation over Time",width=1000)
   fig.vbar_stack(countries,
                  x='year',
                  width=0.5,
                  color = colors,
-                 source=df)
+                 source=df,
+                 legend_label = countries.tolist())
+  fig.yaxis.formatter = BasicTickFormatter(use_scientific=False)
+  fig.add_layout(fig.legend[0], 'right')
   return fig
 
+# html = file_html(vbar_chart(),CDN,'bar_chart')
+# displayHTML(html)
 
 # COMMAND ----------
 
 def create_line():
   
   df_line = get_data_from_query("""SELECT o_orderdate AS Date,o_orderpriority AS Priority,sum(o_totalprice) AS `Total Price`
-                                    FROM `samples`.`tpch`.`orders`
-                                    WHERE o_orderdate > '1994-01-01' AND o_orderdate < '1994-01-31'
-                                    GROUP BY 1,2
-                                    ORDER BY 1, 2""")
+                                    FROM `samples`.`tpch`.`orders` WHERE o_orderdate > '1994-01-01' AND o_orderdate < '1994-01-31'
+                                    GROUP BY 1,2 ORDER BY 1, 2""")
   
   line_df = df_line.pivot(index='Date',columns='Priority',values='Total Price').reset_index()
   columns = [col for col in line_df.columns if col != 'Date']
   colors = magma(len(columns))
 
-  p = figure(title="Shifts in Pricing Priorities")
+  p = figure(title="Shifts in Order Priorities",sizing_mode='stretch_width')
+  p.yaxis.formatter = BasicTickFormatter(use_scientific=False)
+  p.xaxis.formatter = DatetimeTickFormatter(days=['%Y-%m-%d'])
+
   for i in range(0,len(columns)):
     x = line_df['Date']
     y = line_df[columns[i]]
     p.line(x,y,line_width = 2,legend_label=columns[i],color=colors[i])
   return p
+
+
+# html = file_html(create_line(),CDN,'bar_chart')
+# displayHTML(html)
 
 # COMMAND ----------
 
@@ -176,6 +189,9 @@ def create_tabs():
   panel2 = Panel(child=create_map(), title='Tab2')
   tabs = Tabs(tabs=[panel1, panel2])
   return tabs
+
+# html = file_html(create_tabs(),CDN,'bar_chart')
+# displayHTML(html)
 
 # COMMAND ----------
 
