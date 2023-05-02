@@ -58,14 +58,26 @@ def create_map():
   my_hover = HoverTool()
   geo_path = gpd.datasets.get_path("naturalearth_lowres")
   geo_df = gpd.read_file(geo_path)
-  data = geo_df.merge(df_map, left_on = ['name'],right_on=['Nation'], how = 'inner')[['Nation','geometry','revenue']]
-  geosource = GeoJSONDataSource(geojson = data.to_json())
+  orig = geo_df.merge(df_map, left_on = ['name'],right_on=['Nation'], how = 'inner')[['Nation','geometry','revenue']]
   p = figure(sizing_mode='stretch_both',title="Global Revenue Analysis")
-  color_mapper = LinearColorMapper(palette = magma(len(data)), low=data['revenue'].min(), high = data['revenue'].max(), nan_color = '#d9d9d9')
-  my_hover.tooltips = [('Revenue of the country', '@revenue{10,5}')]
-  p.patches('xs','ys', source = geosource,fill_color ={ 'field':'revenue','transform':color_mapper})
+  nations = df_map["Nation"].unique().tolist()
+  colors = magma(len(nations))
+  for i in range(0,len(nations)):
+    data = orig.query(f"Nation=='{nations[i]}'")
+    if len(data) == 0: continue
+    geosource = GeoJSONDataSource(geojson = data.to_json())
+    color_mapper = LinearColorMapper(palette = [colors[i]], nan_color = 'black')
+    my_hover.tooltips = [('Revenue of the country', '@revenue{10,5}')]
+    p.patches('xs','ys', source = geosource,fill_color ={ 'field':'revenue','transform':color_mapper},legend_label = nations[i])
   p.add_tools(my_hover)
   return p
+
+# html = file_html(create_map(),CDN,'bar_chart')
+# displayHTML(html)
+
+
+# COMMAND ----------
+
 
 
 # COMMAND ----------
@@ -86,7 +98,7 @@ def get_html_formatter(my_col):
                 }
                 }()) %>; 
             color: black; text-align: center;"> 
-        $ <%= value %>
+        $ <%= value.toLocaleString() %>
         </div>
     """.replace('result_col',my_col)
     
@@ -109,14 +121,10 @@ ORDER BY 1 LIMIT 400""")
 
   return data_table
 
+# html = file_html(create_table(),CDN,'bar_chart')
+# displayHTML(html)
 
 # COMMAND ----------
-
-from bokeh.plotting import figure
-from bokeh.embed import components, file_html
-from bokeh.resources import CDN
-from bokeh.palettes import Category20c,magma
-from bokeh.models import BasicTickFormatter,DatetimeTickFormatter
 
 def vbar_chart():
 
